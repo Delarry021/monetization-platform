@@ -1,111 +1,162 @@
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 
 import pandas as pd
-import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
-from matplotlib import pyplot as plt
 
-st.markdown("""
+# Configurações de estilo e cores
+BACKGROUND_COLOR = "#092536"
+PRIMARY_COLOR = "#FFC65E"
+TEXT_COLOR = "#FFFFFF"
+
+# Configurações gerais do Streamlit
+st.set_page_config(layout='wide', page_title='Dashboard')
+st.markdown(f"""
 <style>
-    [data-testid=stApp], [data-testid=stApp] h1, [data-testid=stApp] h2 {
-
-        color: black;
-    }
-    [data-testid=stSidebar], [data-testid=stSidebar] h1, [data-testid=stSidebar] h2 {
-        background-color: #0597F2;
-        color: #F2F2F2  ;
-        text-align: justify;
-    }
-    
-    hr{
-        border-color: #3EB1F9;
-    }
-    [data-testid=stSidebar] a,[data-testid=stSidebar] p{
-        color: #F2F2F2;
-    }
-    div[data-baseweb="select"] > div {
-        background-color: #27A4F2;
+    /* Sidebar */
+    .stSidebar {{
+        background-color: {BACKGROUND_COLOR};
+        color: {TEXT_COLOR};
+    }}
+    .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar h4, .stSidebar h5, .stSidebar h6, .stSidebar p {{
+        color: {TEXT_COLOR};
+    }}
+    /* Inputs e botões */
+    .stTextInput, .stSelectbox, .stButton > button, .stTextArea {{
+        background-color: {BACKGROUND_COLOR};
+        color: {TEXT_COLOR};
+        border-color: {PRIMARY_COLOR};
+    }}
+    /* Links */
+    a, a:visited, a:hover {{
+        color: {PRIMARY_COLOR};
+    }}
+    /* Personalização de botões */
+    button, .stButton > button:hover {{
+        background-color: {PRIMARY_COLOR};
+        color: {BACKGROUND_COLOR};
         border: none;
-        color: #F2F2F2;
-    }
+    }}
+    /* Alerta e mensagens */
+    .stAlert {{
+        background-color: {BACKGROUND_COLOR};
+        border-left: 5px solid {PRIMARY_COLOR};
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-#carregar dados
+# Carregar dados
 df = pd.read_csv("data/processed/dados_tratados.csv")
 
-### Main
-st.title('CORA Analytics')
-
+# Sidebar
 st.sidebar.image("resources/logo-cora.png")
-st.sidebar.write("## Submenu")
-menu = st.sidebar.selectbox("Escolha uma opcao:",
-["Visao Geral do Cliente", "Dados de Retencao", "Infraestrutura"])
+st.sidebar.write("## Navegação")
+menu = st.sidebar.selectbox("Selecione a seção desejada:",
+                            ["Análise Geral dos Clientes", "Indicadores de Retenção", "Infraestrutura"])
 st.sidebar.write("""
-ECharts demos are extracted from https://echarts.apache.org/examples/en/index.html, by copying/formattting the 'option' json object into st_echarts. Definitely check the echarts example page, convert the JSON specs to Python Dicts and you should get a nice viz.
+Explore os dados detalhados sobre nossos clientes, retenção e infraestrutura de serviços de telecomunicações. 
 
 ---
-__Made by Delarry__
+__Desenvolvido por Guilherme Delarry__
 """)
 
-if menu == "Visao Geral do Cliente":
+st.title('CORA Analytics')
+
+# Processamentos comuns aos gráficos
+df['Faixa_Etaria'] = pd.cut(df['Idade'], bins=[18, 30, 40, 50, 60, 70, 100],
+                            labels=['18-30', '30-40', '40-50', '50-60', '60-70', '70+'])
+
+# Menu Análise Geral dos Clientes
+if menu == "Análise Geral dos Clientes":
     st.header("Visao Geral do Cliente")
-    st.write("Aqui estao os dados gerais sobre os clientes.")
+    st.write("Uma visão ampla sobre o perfil e comportamento dos clientes da CORA.")
+    st.divider()
 
-    st.bar_chart(df['Idade'].value_counts().sort_index(),color="#0597F2")
-    st.bar_chart(df['Estado'].value_counts().sort_index(),color="#0597F2")
+    qnt_cli, qnt_estados, med_idade = st.columns(3)
+    qnt_cli.metric(label="Quantidade de clientes", value=df.shape[0], delta="-3 Atualizado Hoje")
+    qnt_estados.metric(label="Estados Abrangidos", value=df.Estado.nunique(), delta="0 Atualizado Hoje")
+    med_idade.metric(label="Média de Idade", value=f"{round(df.Idade.mean())} Anos", delta="+0.3 Atualizado Hoje")
 
-    fig, ax = plt.subplots()
-    ax.pie(df['Genero'].value_counts(),colors=["#0597F2","#F59CA9","#FE9920"] ,labels=df['Genero'].value_counts().index, autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')  # Garantir que o gráfico de pizza seja um círculo
-    st.pyplot(fig)
+    st.divider()
 
-    grouped_df = df.groupby(['Motivo da Rotatividade','Estado']).size().unstack().fillna(0)
-    plt.figure(figsize=(16, 8))  # Aumentar o tamanho da figura
-    sns.heatmap(grouped_df, cmap="YlGnBu", annot=True, fmt="g", linewidths=.5)
-    plt.title("Mapa de Calor - Quantidade de Clientes por Estado e Motivo de Cancelamento")
-    plt.xlabel("Estado")
-    plt.ylabel("Motivo da Rotatividade")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Quantidade de clientes por Idade")
+        st.bar_chart(df['Idade'].value_counts().sort_index(), height=250, color="#0597F2", use_container_width=True)
+    with col2:
+        st.subheader("Quantidade de clientes por Estado")
+        st.bar_chart(df['Estado'].value_counts().sort_index(), height=250, color="#0597F2", use_container_width=True)
 
-    st.pyplot(plt)
+    col3, col4 = st.columns([2, 1])
+    with col3:
+        st.subheader("Média de GB de Download por Faixa Etária")
+        media_gb_faixa_etaria = df.groupby('Faixa_Etaria')['Media mensal de GB para download'].mean()
+        st.bar_chart(media_gb_faixa_etaria)
+    with col4:
+        st.subheader("Distribuição de Gênero")
+        genero_count = df['Genero'].value_counts()
+        fig = px.pie(genero_count, values=genero_count.values, names=genero_count.index, height=330)
+        fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5))
+        st.plotly_chart(fig)
 
-elif menu == "Dados de Retencao":
-    st.header("Dados de Retencao")
-    st.write("Aqui estao os dados de retencao dos clientes.")
+# Menu Indicadores de Retenção
+elif menu == "Indicadores de Retenção":
+    st.header("Indicadores de Retenção")
+    st.write("Análise detalhada sobre a retenção e rotatividade dos clientes.")
+    st.divider()
 
-    st.scatter_chart(
-        pd.DataFrame(df, columns=["Duracao da conta (em meses)", "Cobranca Mensal", "Plano de Dados Ilimitado"]),
-        y="Cobranca Mensal", x="Duracao da conta (em meses)", color="Plano de Dados Ilimitado", size=25, height=350)
+    sim_count, nao_count = df['Etiqueta de rotatividade'].value_counts().get('Sim', 0), df['Etiqueta de rotatividade'].value_counts().get('Nao', 0)
+    total_count = (sim_count / nao_count) * 100
 
+    col1, col2, col3 = st.columns(3)
+    col1.metric(label="Taxa de Rotatividade", value=f"{round(total_count, 2)}%", delta="-8.32% Atualizado Hoje")
+    col2.metric(label="Média de Chamadas Locais", value=f"{round(df['Chamadas locais'].mean(), 2)} Min", delta="+2.53 Atualizado Hoje")
+    col3.metric(label="Média de Duração de Conta", value=f"{round(df['Duracao da conta (em meses)'].mean(), 2)} Meses", delta="+0.3 Atualizado Hoje")
 
+    st.divider()
 
+    col4, col5 = st.columns(2)
+    with col4:
+        st.subheader("Tipo de Contrato por Grupo de Clientes")
+        fig1 = px.histogram(df, x='Tipo de Contrato', color='Grupo')
+        st.plotly_chart(fig1)
+        st.subheader("Duração da Conta x Cobrança Mensal")
+        fig2 = px.scatter(df, x="Duracao da conta (em meses)", y="Cobranca Mensal", color="Plano de Dados Ilimitado")
+        st.plotly_chart(fig2)
+    with col5:
+        st.subheader("Motivos de Cancelamento e Rotatividade")
+        fig3 = px.histogram(df, y='Motivo da Rotatividade')
+        st.plotly_chart(fig3)
+        st.subheader("Motivos de Cancelamento por Estado")
+        grouped_df = df.groupby(['Motivo da Rotatividade', 'Estado']).size().unstack().fillna(0)
+        fig4 = go.Figure(data=go.Heatmap(z=grouped_df.values, x=grouped_df.columns, y=grouped_df.index, colorscale='YlGnBu'))
+        st.plotly_chart(fig4)
 
-    plt.figure(figsize=(10, 6))
-    df['Total_Minutos'] = df['Minutos Local'] + df['Minutos Internacional']
-    df_grouped = df.groupby('Grupo').agg({
-        'Minutos Local': 'sum',
-        'Minutos Internacional': 'sum'
-    }).reset_index()
-
-    df_grouped_melted = pd.melt(df_grouped, id_vars='Grupo', value_vars=['Minutos Local', 'Minutos Internacional'],
-                                var_name='Tipo de Minuto', value_name='Total Minutos')
-
-    sns.barplot(x='Grupo', y='Total Minutos', hue='Tipo de Minuto', data=df_grouped_melted)
-    plt.title('Comparacao de Minutos Locais e Internacionais por Grupo')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    st.pyplot(plt)
-
+# Menu Infraestrutura
 elif menu == "Infraestrutura":
     st.header("Infraestrutura")
-    st.write("Aqui estao os dados sobre a infraestrutura.")
+    st.write("Indicadores relacionados à infraestrutura e serviços oferecidos aos clientes.")
+    st.divider()
 
+    col1, col2 = st.columns(2)
+    col1.metric(label="Média de Minutos Locais", value=f"{round(df['Minutos Local'].mean(), 2)} min", delta="+10.35 Atualizado Hoje")
+    col2.metric(label="Média de Minutos Internacionais", value=f"{round(df['Minutos Internacional'].mean(), 2)} min", delta="+60.30 Atualizado Hoje")
 
+    st.divider()
 
-
-
-
-
-
-
-
+    col3, col4 = st.columns(2)
+    with col3:
+        st.subheader("Chamadas de Atendimento ao Cliente por Idade")
+        fig1 = px.scatter(df, x='Idade', y='Chamadas de atendimento ao cliente', color='Genero')
+        st.plotly_chart(fig1)
+        st.subheader("Tarifas Internacionais Extras por Estado")
+        fig2 = px.bar(df, x='Estado', y='Tarifas internacionais extras', color='Estado')
+        st.plotly_chart(fig2)
+    with col4:
+        st.subheader("Planos Internacionais por Grupo")
+        fig3 = px.histogram(df, x='Plano internacional', color='Grupo', barmode='group')
+        st.plotly_chart(fig3)
+        st.subheader("Chamadas Internacionais por Estado")
+        fig4 = px.bar(df, x='Estado', y='Chamadas internacionais', color='Estado')
+        st.plotly_chart(fig4)
