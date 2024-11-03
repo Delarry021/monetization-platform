@@ -83,7 +83,7 @@ if menu == "Análise Geral dos Clientes":
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Quantidade de clientes por Idade")
-        st.bar_chart(df['Idade'].value_counts().sort_index(), height=250, color="#0597F2", use_container_width=True)
+        st.bar_chart(df['Faixa_Etaria'].value_counts().sort_index(), height=250, color="#0597F2", use_container_width=True)
     with col2:
         st.subheader("Quantidade de clientes por Estado")
         st.bar_chart(df['Estado'].value_counts().sort_index(), height=250, color="#0597F2", use_container_width=True)
